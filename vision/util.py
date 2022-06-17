@@ -7,6 +7,7 @@ import torch
 from torchvision import datasets, transforms
 from torch.utils.data.dataset import Subset
 
+from data.datamodules.nsynth import NSynthDataModule
 from third_party.celebamask_hq import Data_Loader
 
 
@@ -113,7 +114,21 @@ def get_loader(dataset, path_dataset, bs=64, n_work=2):
         val_loader = val_dataset.loader()
         test_loader = test_dataset.loader()
 
-    return train_loader, val_loader, test_loader
+    elif dataset == "NSynth":
+        from torchaudio.transforms import Spectrogram
+
+        transform = Spectrogram(n_fft=512, win_length=512, hop_length=160, power=2.0)
+        dm = NSynthDataModule(
+            "data/datasets/NSynth",
+            transforms=transform,
+            num_workers=n_work,
+            batch_size=bs,
+            pin_memory=True
+        )
+        dm.prepare_data()
+        dm.setup()
+
+    return dm.train_dataloader(), dm.val_dataloader(), dm.test_dataloader()
 
 
 def get_loader_celeba_mask_hq(path_dataset, bs, imsize, type_data="both", gray=False):

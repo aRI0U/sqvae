@@ -55,12 +55,12 @@ class Encoder(nn.Module):
         else:
             raise Exception("Undefined param_var_q")
         z = z[:, :, :self.embedding_dim]
-        z, loss, perplexity = self.codebook(z, log_var_q, temperature)
+        z, loss, perplexity = self.codebook(z, log_var_q, temperature)  # z = quantized
         z = self.jitter(z)
         return z, loss, perplexity
 
     def encode(self, mel):
-        z = self.encoder(mel)
+        z = self.encoder(mel)  # (batch_size, channels, sample_size)
         z = z.transpose(1, 2)
         if self.param_var_q == "gaussian_1":
             log_var_q = self.log_var_q_scalar
@@ -131,7 +131,7 @@ class SQEmbedding(nn.Module):
     def forward(self, x, log_var_q, temperature):
         M, D = self.embedding.size()
         batch_size, sample_size, channels = x.size()
-        x_flat = x.reshape(-1, D)
+        x_flat = x.reshape(-1, D)  # (batch_size * sample_size, embedding_dim)
         if self.param_var_q == "gaussian_1":
             log_var_q_flat = log_var_q.reshape(1, 1)
         elif self.param_var_q == "gaussian_3":
@@ -141,27 +141,27 @@ class SQEmbedding(nn.Module):
         else:
             raise Exception("Undefined param_var_q")
 
-        x_flat = x_flat.unsqueeze(2)
-        log_var_flat = log_var_q_flat.unsqueeze(2)
-        embedding = self.embedding.t().unsqueeze(0)
+        x_flat = x_flat.unsqueeze(2)  # (batch_size * sample_size, embedding_dim, 1)
+        log_var_flat = log_var_q_flat.unsqueeze(2)  # (.., .., 1)
+        embedding = self.embedding.t().unsqueeze(0)  # (1, embedding_dim, n_embeddings)
         precision_flat = torch.exp(-log_var_flat)
-        distances = 0.5 * torch.sum(precision_flat * (embedding - x_flat) ** 2, dim=1)
+        distances = 0.5 * torch.sum(precision_flat * (embedding - x_flat) ** 2, dim=1)  # (batch_size * sample_size, n_embeddings)
 
-        indices = torch.argmin(distances.float(), dim=-1)
+        indices = torch.argmin(distances.float(), dim=-1)  # (batch_size * sample_size)
 
         logits = -distances
 
-        encodings = self._gumbel_softmax(logits, tau=temperature, dim=-1)
-        quantized = torch.matmul(encodings, self.embedding)
+        encodings = self._gumbel_softmax(logits, tau=temperature, dim=-1)  # (batch_size * sample_size, n_embeddings)
+        quantized = torch.matmul(encodings, self.embedding)  # (batch_size * sample_size, embedding_dim)
         quantized = quantized.view_as(x)
 
-        logits = logits.view(batch_size, sample_size, M)
-        probabilities = torch.softmax(logits, dim=-1)
-        log_probabilities = torch.log_softmax(logits, dim=-1)
+        logits = logits.view(batch_size, sample_size, M)  # (batch_size, sample_size, embedding_dim)
+        probabilities = torch.softmax(logits, dim=-1)  # (batch_size, sample_size)
+        log_probabilities = torch.log_softmax(logits, dim=-1)  # (batch_size, sample_size)
 
         precision = torch.exp(-log_var_q)
-        loss = torch.mean(0.5 * torch.sum(precision * (x - quantized) ** 2, dim=(1, 2))
-                          + torch.sum(probabilities * log_probabilities, dim=(1, 2)))
+        loss = torch.mean(0.5 * torch.sum(precision * (x - quantized) ** 2, dim=(1, 2))  # regularization
+                          + torch.sum(probabilities * log_probabilities, dim=(1, 2)))    # entropy
 
         encodings = F.one_hot(indices, M).float()
         avg_probs = torch.mean(encodings, dim=0)

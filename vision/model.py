@@ -7,6 +7,7 @@ from quantizer import GaussianVectorQuantizer, VmfVectorQuantizer
 import networks.mnist as net_mnist
 import networks.fashion_mnist as net_fashionmnist
 import networks.cifar10 as net_cifar10
+import networks.nsynth as net_nsynth
 import networks.celeba as net_celeba
 import networks.celebamask_hq as net_celebamask_hq
 from third_party.ive import ive
@@ -79,6 +80,9 @@ class SQVAE(nn.Module):
 
         # Decoding
         x_reconst = self.decoder(z_quantized)
+        if x.size() != x_reconst.size():
+            padding = (0, x.size(-1) - x_reconst.size(-1), 0, x.size(-2) - x_reconst.size(-2))
+            x_reconst = F.pad(x_reconst, padding)
 
         # Loss
         loss = self._calc_loss(x_reconst, x, loss_latent)

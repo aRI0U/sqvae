@@ -37,7 +37,7 @@ class TrainerBase(nn.Module):
     ## Methods for main loop
 
     def main_loop(self, max_iter=None, timestamp=None):
-        if timestamp == None:
+        if timestamp is None:
             self._make_path()
         else:
             self.path = os.path.join(self.cfgs.path, timestamp)
@@ -63,7 +63,7 @@ class TrainerBase(nn.Module):
                     torch.save(
                         self.model.state_dict(), os.path.join(self.path, "best.pt"))
                     self.generate_reconstructions(
-                        os.path.join(self.path, "reconstrucitons_best"))
+                        os.path.join(self.path, "reconstructions_best"))
                 else:
                     myprint("----Not saving model! Last saved: {}"
                         .format(LAST_SAVED), self.flgs.noprint)

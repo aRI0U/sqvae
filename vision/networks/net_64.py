@@ -6,12 +6,12 @@ from networks.util import ResBlock
 
 
 class EncoderVqResnet64(nn.Module):
-    def __init__(self, dim_z, cfgs, flg_bn=True, flg_var_q=False):
+    def __init__(self, in_channels, dim_z, cfgs, flg_bn=True, flg_var_q=False):
         super(EncoderVqResnet64, self).__init__()
         self.flg_variance = flg_var_q
         # Convolution layers
         layers_conv = []
-        layers_conv.append(nn.Sequential(nn.Conv2d(3, dim_z // 2, 4, stride=2, padding=1)))
+        layers_conv.append(nn.Sequential(nn.Conv2d(in_channels, dim_z // 2, 4, stride=2, padding=1)))
         if flg_bn:
             layers_conv.append(nn.BatchNorm2d(dim_z // 2))
         layers_conv.append(nn.ReLU())
@@ -43,7 +43,7 @@ class EncoderVqResnet64(nn.Module):
         
 
 class DecoderVqResnet64(nn.Module):
-    def __init__(self, dim_z, cfgs, flg_bn=True):
+    def __init__(self, out_channels, dim_z, cfgs, flg_bn=True):
         super(DecoderVqResnet64, self).__init__()
         # Resblocks
         num_rb = cfgs.num_rb
@@ -61,7 +61,7 @@ class DecoderVqResnet64(nn.Module):
         if flg_bn:
             layers_convt.append(nn.BatchNorm2d(dim_z // 2))
         layers_convt.append(nn.ReLU())
-        layers_convt.append(nn.ConvTranspose2d(dim_z // 2, 3, 4, stride=2, padding=1))
+        layers_convt.append(nn.ConvTranspose2d(dim_z // 2, out_channels, 4, stride=2, padding=1))
         layers_convt.append(nn.Sigmoid())
         self.convt = nn.Sequential(*layers_convt)
         
